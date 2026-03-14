@@ -30,11 +30,26 @@ class MyPolicy(Policy):
             velocity=own.velocity,
             heading=own.heading,
         )
-
+        print('_______________________________\n')
+        print(f"DEBUG: s_start {s_start}")
+        print('_______________________________\n')
+        
+        
         # 2) Plan with D*
-        planner = D_star(s_start=s_start, s_goal=s_goal, step_length=15.0)
+        planner = D_star(s_start=s_start, s_goal=s_goal, step_length=30.0)
+        print('_______________________________\n')
+        print(f"DEBUG: D_star loaded")
+        print('_______________________________\n')
+        
         planner.compute_shortest_path()
+        print('_______________________________\n')
+        print(f"DEBUG: finished calculating shortest path")
+        print('_______________________________\n')
+        
         path_states = planner.extract_path()  # States from (near) start toward goal
+        print('_______________________________\n')
+        print(f"DEBUG: extracted path")
+        print('_______________________________\n')
 
         steps: list[ActionStep] = []
 
@@ -45,7 +60,7 @@ class MyPolicy(Policy):
             dy = goal_center.y - current_pos.y
             dist = math.hypot(dx, dy)
             if dist > 0.0:
-                step_dist = min(15.0, dist)
+                step_dist = min(30.0, dist)
                 step_x = current_pos.x + dx / dist * step_dist
                 step_y = current_pos.y + dy / dist * step_dist
                 target_pos = Position2D(x=step_x, y=step_y)
@@ -134,11 +149,7 @@ class MyPolicy(Policy):
 class D_star:
     """
     Minimal D* Lite-style planner working on a 2D grid of States.
-
-    Notes:
-    - We only implement a static single-shot plan right now (no dynamic updates).
-    - g and rhs use lazy-initialisation: missing entries are treated as +inf.
-    - get_surround_states generates 8-connected neighbors at a fixed step length.
+    Optimized for performance and grid alignment.
     """
 
     def __init__(self, s_start: State, s_goal: State, step_length: float = 15.0):
@@ -146,35 +157,48 @@ class D_star:
         self.s_goal = s_goal
         self.step_length = step_length
 
-        # priority queue holds (key, State) where key is a (k1, k2) tuple
-        self.pq: list[tuple[tuple[float, float], State]] = []
+        # priority queue holds (key, counter, State) 
+        # counter avoids comparing State objects when keys are equal
+        self.pq: list[tuple[tuple[float, float], int, State]] = []
+        self._counter = 0
 
         # D* Lite value functions (lazy: missing => +inf)
-        self.g: dict[tuple[float, float, int], float] = {}
-        self.rhs: dict[tuple[float, float, int], float] = {}
+        self.g: dict[tuple[int, int, int], float] = {}
+        self.rhs: dict[tuple[int, int, int], float] = {}
 
         # Initialize goal
         self._set_rhs(self.s_goal, 0.0)
-        hq.heappush(self.pq, (self._calculate_key(self.s_goal), self.s_goal))
+        self._push(self.s_goal)
+
+    def _push(self, s: State):
+        self._counter += 1
+        hq.heappush(self.pq, (self._calculate_key(s), self._counter, s))
 
     # --- Helpers for lazy g / rhs access -------------------------------------------------
-    def _node_key(self, s: State) -> tuple[float, float, int]:
-        return (s.position.x, s.position.y, s.alt_layer)
+    def _node_key(self, s: State) -> tuple[int, int, int]:
+        # Use integer grid coordinates for robust dictionary keys
+        return (int(round(s.position.x / self.step_length)),
+                int(round(s.position.y / self.step_length)),
+                s.alt_layer)
+
     def _same_node(self, a: State, b: State) -> bool:
         return self._node_key(a) == self._node_key(b)
+
     def _get_g(self, s: State) -> float:
         return self.g.get(self._node_key(s), float("inf"))
+
     def _set_g(self, s: State, value: float) -> None:
         self.g[self._node_key(s)] = value
+
     def _get_rhs(self, s: State) -> float:
         return self.rhs.get(self._node_key(s), float("inf"))
+
     def _set_rhs(self, s: State, value: float) -> None:
         self.rhs[self._node_key(s)] = value
 
     # --- Core D* Lite pieces -------------------------------------------------------------
 
     def _heuristic(self, s_from: State, s_to: State) -> float:
-        # Simple admissible heuristic: straight-line distance
         dx = s_from.position.x - s_to.position.x
         dy = s_from.position.y - s_to.position.y
         return math.hypot(dx, dy)
@@ -183,12 +207,10 @@ class D_star:
         g_s = self._get_g(s)
         rhs_s = self._get_rhs(s)
         m = min(g_s, rhs_s)
-        k1 = m + self._heuristic(self.s_start, s)
-        k2 = m
-        return (k1, k2)
+        # k1 = f-score, k2 = g-score
+        return (m + self._heuristic(self.s_start, s), m)
 
     def _update_vertex(self, s: State) -> None:
-        # Update rhs(s) from one-step lookahead (except at goal)
         if not self._same_node(s, self.s_goal):
             neighbors = self.get_surround_states(s, self.step_length)
             best = float("inf")
@@ -198,26 +220,29 @@ class D_star:
                     best = cost
             self._set_rhs(s, best)
 
-        # If state is inconsistent, (re)insert it into the queue
-        if not math.isclose(self._get_g(s), self._get_rhs(s)):
-            hq.heappush(self.pq, (self._calculate_key(s), s))
+        # Remove from queue if already there (handled by stale entry check in loop)
+        # then re-insert if inconsistent
+        if not math.isclose(self._get_g(s), self._get_rhs(s), abs_tol=1e-3):
+            self._push(s)
 
     def compute_shortest_path(self) -> None:
-        """
-        Basic D* Lite loop. For simplicity we run until either:
-        - queue is empty, or
-        - start is locally consistent and has no better key in the queue.
-        """
-        while self.pq:
-            top_key, u = hq.heappop(self.pq)
+        max_expansions = 5000  # Safety cap to prevent infinite search
+        expansions = 0
+        
+        start_key = self._calculate_key(self.s_start)
+        
+        while self.pq and expansions < max_expansions:
+            top_key, _, u = hq.heappop(self.pq)
+            expansions += 1
 
-            # Skip stale entries
+            # Skip stale entries: if the node's key has changed since it was added, 
+            # the current pop is no longer the most up-to-date.
             if top_key > self._calculate_key(u):
                 continue
 
-            # Termination condition (approximate textbook condition)
-            if (top_key >= self._calculate_key(self.s_start)
-                    and math.isclose(self._get_g(self.s_start), self._get_rhs(self.s_start))):
+            # Termination condition
+            if top_key >= self._calculate_key(self.s_start) and \
+               math.isclose(self._get_g(self.s_start), self._get_rhs(self.s_start), abs_tol=1e-3):
                 break
 
             g_u = self._get_g(u)
@@ -225,7 +250,6 @@ class D_star:
 
             if g_u > rhs_u:
                 self._set_g(u, rhs_u)
-                # Predecessors are approximated as neighbors in this simple grid
                 for p in self.get_surround_states(u, self.step_length):
                     self._update_vertex(p)
             else:
@@ -234,25 +258,18 @@ class D_star:
                     self._update_vertex(p)
 
     def extract_path(self) -> list[State]:
-        """
-        Follow greedy descent from s_start to s_goal using g-values.
-        Returns a list of States from start (excluded) toward goal (included),
-        or an empty list if no path is known.
-        """
         path: list[State] = []
         current = self.s_start
-
-        # Safety cap to avoid infinite loops on inconsistent graphs
-        for _ in range(500):
+        
+        # Max path length to prevent infinite loops
+        for _ in range(200):
             if self._same_node(current, self.s_goal):
                 break
 
             neighbors = self.get_surround_states(current, self.step_length)
-            if not neighbors:
-                break
-
             best_neighbor = None
             best_value = float("inf")
+            
             for n in neighbors:
                 value = self._cost(current, n) + self._get_g(n)
                 if value < best_value:
@@ -260,31 +277,23 @@ class D_star:
                     best_neighbor = n
 
             if best_neighbor is None or best_value == float("inf"):
-                # No way forward with finite cost
                 break
 
             path.append(best_neighbor)
             current = best_neighbor
-
-            if self._same_node(current, self.s_goal):
-                break
-
+            
         return path
 
     # --- Graph structure -----------------------------------------------------------------
 
     @staticmethod
     def get_surround_states(s: State, step: float) -> list[State]:
-        """
-        Generate an 8-connected neighborhood around s in the horizontal plane.
-        Altitude layer is kept constant.
-        """
         neighbors: list[State] = []
-        x0 = s.position.x
-        y0 = s.position.y
+        # Snap current position to ensure neighbors are on the global grid
+        x0 = round(s.position.x / step) * step
+        y0 = round(s.position.y / step) * step
         alt = s.alt_layer
 
-        # 8-connected grid (dx, dy) in {-1, 0, 1}^2 \ {(0, 0)}
         for dx in (-1.0, 0.0, 1.0):
             for dy in (-1.0, 0.0, 1.0):
                 if dx == 0.0 and dy == 0.0:
@@ -300,7 +309,6 @@ class D_star:
                         heading=s.heading,
                     )
                 )
-
         return neighbors
 
     def _cost(self, s_start: State, s_end: State) -> float:
