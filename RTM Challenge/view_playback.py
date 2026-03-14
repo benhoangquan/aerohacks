@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import numpy as np
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -343,7 +344,7 @@ def main():
         if npc_points:
             npc_scatter.set_offsets(npc_points)
         else:
-            npc_scatter.set_offsets([])
+            npc_scatter.set_offsets(np.empty((0, 2)))
 
         status_text.set_text(
             f"time={t}\n"
@@ -358,64 +359,19 @@ def main():
     def on_slider_change(value):
         render(value)
 
-    # Playback control state
-    state = {
-        "playing": False,
-        "interval": 50,  # ms
-        "step": 1
-    }
-
-    timer = fig.canvas.new_timer(interval=state["interval"])
-
-    def tick():
-        if not state["playing"]:
-            return
-        curr = int(slider.val)
-        if curr >= len(playback) - 1:
-            state["playing"] = False
-            timer.stop()
-            return
-        slider.set_val(curr + 1)
-
-    timer.add_callback(tick)
-
     def on_key(event):
         idx = int(slider.val)
-        
-        # Determine step size (Shift = 10x jump)
-        jump = 10 if "shift" in event.key else 1
-        key = event.key.replace("shift+", "")
-
-        if key == "left":
-            slider.set_val(max(0, idx - jump))
-        elif key == "right":
-            slider.set_val(min(len(playback) - 1, idx + jump))
-        elif key == "home":
+        if event.key == "left":
+            slider.set_val(max(0, idx - 1))
+        elif event.key == "right":
+            slider.set_val(min(len(playback) - 1, idx + 1))
+        elif event.key == "home":
             slider.set_val(0)
-        elif key == "end":
+        elif event.key == "end":
             slider.set_val(len(playback) - 1)
-        elif key == " ":  # Space to Play/Pause
-            state["playing"] = not state["playing"]
-            if state["playing"]:
-                timer.start()
-            else:
-                timer.stop()
-        elif key == "f":  # Faster
-            state["interval"] = max(5, state["interval"] - 10)
-            timer.interval = state["interval"]
-        elif key == "s":  # Slower
-            state["interval"] = min(1000, state["interval"] + 10)
-            timer.interval = state["interval"]
 
     slider.on_changed(on_slider_change)
     fig.canvas.mpl_connect("key_press_event", on_key)
-
-    print("\nPlayback Controls:")
-    print("  [Space]       Play/Pause")
-    print("  [Left/Right]  Step 1 frame")
-    print("  [Shift+L/R]   Step 10 frames")
-    print("  [F] / [S]     Faster / Slower")
-    print("  [Home/End]    Start / End of playback\n")
 
     render(0)
     plt.show()
