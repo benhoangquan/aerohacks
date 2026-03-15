@@ -172,10 +172,10 @@ class MyPolicy(Policy):
                 return False
         return True
 
-    def circle_to_polygon(self, center, radius, expand_r, num_points=16):
+    def circle_to_polygon(self, center, radius, expand_r, num_points=8):
         # We must circumscribe the polygon so straight edges don't cut inside the circle.
         # The apothem (closest distance to edge) is radius + expand_r.
-        apothem = radius + expand_r
+        apothem = radius * 1.2 # Scale by radius might give a more safe margin
         r = apothem / math.cos(math.pi / num_points)
         verts = []
         for i in range(num_points):
