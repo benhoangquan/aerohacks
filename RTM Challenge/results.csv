@@ -1,0 +1,2 @@
+Scenario Name,Map Size,Traffic Count,NOTAM Count,Static Count,Seed,Score,Final Energy,Final Time
+eval_test_01,1000.0,5,5,3,None,1000.0,439.9,101

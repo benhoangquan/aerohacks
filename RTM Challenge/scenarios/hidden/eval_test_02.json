@@ -1,0 +1,232 @@
+{
+  "shrinking_notams": [
+    {
+      "id": "notam_0",
+      "region": {
+        "type": "CircleRegion",
+        "center_pos": {
+          "x": 426.7,
+          "y": 192.0
+        },
+        "radius": 57.7
+      },
+      "alt_layers": [
+        2,
+        1,
+        4
+      ],
+      "advisory_start_time": 2,
+      "controlled_start_time": 9,
+      "restricted_start_time": 14
+    },
+    {
+      "id": "notam_1",
+      "region": {
+        "type": "CircleRegion",
+        "center_pos": {
+          "x": 359.3,
+          "y": 486.0
+        },
+        "radius": 69.3
+      },
+      "alt_layers": [
+        2,
+        4,
+        3
+      ],
+      "advisory_start_time": 2,
+      "controlled_start_time": 12,
+      "restricted_start_time": 16
+    },
+    {
+      "id": "notam_2",
+      "region": {
+        "type": "PolygonRegion",
+        "vertices": [
+          {
+            "x": 243.9,
+            "y": 194.7
+          },
+          {
+            "x": 218.6,
+            "y": 238.7
+          },
+          {
+            "x": 217.1,
+            "y": 239.7
+          },
+          {
+            "x": 167.8,
+            "y": 245.5
+          },
+          {
+            "x": 134.2,
+            "y": 215.4
+          },
+          {
+            "x": 228.9,
+            "y": 151.9
+          }
+        ]
+      },
+      "alt_layers": [
+        2,
+        1
+      ],
+      "advisory_start_time": 14,
+      "controlled_start_time": 18,
+      "restricted_start_time": 23
+    },
+    {
+      "id": "notam_3",
+      "region": {
+        "type": "PolygonRegion",
+        "vertices": [
+          {
+            "x": 269.2,
+            "y": 962.0
+          },
+          {
+            "x": 193.0,
+            "y": 963.9
+          },
+          {
+            "x": 175.7,
+            "y": 908.9
+          },
+          {
+            "x": 208.9,
+            "y": 870.3
+          },
+          {
+            "x": 234.0,
+            "y": 866.3
+          },
+          {
+            "x": 255.3,
+            "y": 872.2
+          }
+        ]
+      },
+      "alt_layers": [
+        4,
+        2,
+        3
+      ],
+      "advisory_start_time": 25,
+      "controlled_start_time": 31,
+      "restricted_start_time": 35
+    },
+    {
+      "id": "notam_4",
+      "region": {
+        "type": "CircleRegion",
+        "center_pos": {
+          "x": 225.0,
+          "y": 639.0
+        },
+        "radius": 36.8
+      },
+      "alt_layers": [
+        3,
+        2,
+        4
+      ],
+      "advisory_start_time": 23,
+      "controlled_start_time": 32,
+      "restricted_start_time": 40
+    }
+  ],
+  "traffic_traces": [
+    {
+      "id": "traffic_0",
+      "segments": [
+        {
+          "start_time": 0,
+          "end_time": 1000,
+          "start_pos": {
+            "x": 135.4,
+            "y": 900.0
+          },
+          "velocity": {
+            "x": 5.5,
+            "y": -11.03
+          },
+          "alt_layer": 2
+        }
+      ]
+    },
+    {
+      "id": "traffic_1",
+      "segments": [
+        {
+          "start_time": 0,
+          "end_time": 1000,
+          "start_pos": {
+            "x": 100,
+            "y": 791.2
+          },
+          "velocity": {
+            "x": 3.06,
+            "y": 5.94
+          },
+          "alt_layer": 3
+        }
+      ]
+    },
+    {
+      "id": "traffic_2",
+      "segments": [
+        {
+          "start_time": 0,
+          "end_time": 1000,
+          "start_pos": {
+            "x": 900.0,
+            "y": 351.8
+          },
+          "velocity": {
+            "x": -8.77,
+            "y": -3.06
+          },
+          "alt_layer": 1
+        }
+      ]
+    },
+    {
+      "id": "traffic_3",
+      "segments": [
+        {
+          "start_time": 0,
+          "end_time": 1000,
+          "start_pos": {
+            "x": 100,
+            "y": 418.0
+          },
+          "velocity": {
+            "x": 6.7,
+            "y": 3.21
+          },
+          "alt_layer": 4
+        }
+      ]
+    },
+    {
+      "id": "traffic_4",
+      "segments": [
+        {
+          "start_time": 0,
+          "end_time": 1000,
+          "start_pos": {
+            "x": 286.1,
+            "y": 100
+          },
+          "velocity": {
+            "x": 6.71,
+            "y": 3.52
+          },
+          "alt_layer": 4
+        }
+      ]
+    }
+  ]
+}
