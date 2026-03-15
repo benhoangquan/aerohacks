@@ -4,13 +4,12 @@ import math
 import json
 import os
 from dataclasses import asdict
-from pdb import set_trace as bp
 
 class MyPolicy(Policy):
     """
     HEURISTIC ALGORITHM:
     1. Fly straight to the goal.
-    2. If the path is blocked by a RESTRICTED zone or traffic, trace the edge by rotating the velocity vector.
+    2. If the path is blocked by a RESTRICTED zone, static obstacle, or traffic, trace the edge by rotating the velocity vector.
     3. Always prefer the straight path to the goal if it becomes available.
     """
     
@@ -20,36 +19,26 @@ class MyPolicy(Policy):
         if os.path.exists(self.log_file):
             os.remove(self.log_file)
 
-    def _log_plan(self, obs: Observation, plan: Plan):
-        """Logs the observation time and the resulting plan to a JSONL file."""
-        log_entry = {
-            "timestamp": obs.current_time,
-            "ownship_pos": {"x": obs.ownship_state.position.x, "y": obs.ownship_state.position.y},
-            "plan": []
-        }
-        for step in plan.steps:
-            step_dict = {
-                "type": step.action_type.value if hasattr(step.action_type, 'value') else str(step.action_type),
-                "alt": step.target_alt_layer
-            }
-            if step.target_position:
-                step_dict["pos"] = {"x": step.target_position.x, "y": step.target_position.y}
-            log_entry["plan"].append(step_dict)
-            
-        with open(self.log_file, "a") as f:
-            f.write(json.dumps(log_entry) + "\n")
-
     def is_blocked(self, pos: Position2D, alt: int, obs: Observation) -> bool:
-        # 1. Check Restricted Airspace (No-Fly Zones)
-        for c in obs.active_constraints:
+        # 0. Check Map Boundaries
+        if obs.map_boundaries and not obs.map_boundaries.contains(pos):
+            return True
+
+        # 1. Check Static Obstacles (Impassable at all layers)
+        for region in obs.static_obstacles:
+            if region.contains(pos):
+                return True
+
+        # 2. Check Restricted Airspace (Active + Permanent)
+        all_constraints = obs.active_constraints + obs.permanent_constraints
+        for c in all_constraints:
             if alt in c.alt_layers:
-                # Handle both enum and string cases for phase
                 phase = c.phase.value if hasattr(c.phase, 'value') else str(c.phase)
                 if phase == "RESTRICTED":
                     if c.region.contains(pos):
                         return True
         
-        # 2. Check Traffic (Avoidance)
+        # 3. Check Traffic (Avoidance)
         for t in obs.traffic_tracks:
             # Avoid drones at our altitude or adjacent layers
             if abs(t.alt_layer - alt) <= 1:
@@ -72,7 +61,7 @@ class MyPolicy(Policy):
         # Maximum speed is 15.0m per tick
         speed = min(15.0, dist_to_goal)
         
-        # 1. Try straight path first (as requested: "if there exists a straight path, take it")
+        # 1. Try straight path first
         straight_pos = Position2D(
             x=current_pos.x + math.cos(angle_to_goal) * speed,
             y=current_pos.y + math.sin(angle_to_goal) * speed
@@ -82,7 +71,7 @@ class MyPolicy(Policy):
 
         # 2. Trace edge by rotating the velocity vector
         # We try rotating left/right in increasing increments
-        for deg in range(10, 160, 10):
+        for deg in range(10, 300, 10):
             for sign in [1, -1]: # Try both directions
                 angle = angle_to_goal + sign * math.radians(deg)
                 test_pos = Position2D(
@@ -96,14 +85,6 @@ class MyPolicy(Policy):
         return current_pos
 
     def step(self, obs: Observation) -> Plan:
-        # for constraint in obs.active_constraints:
-        #     print(constraint)
-        
-        # for track in obs.traffic_tracks:
-        #     print(track)
-        
-        # bp() 
-        
         own_state = obs.ownship_state
         current_pos = own_state.position
         goal_pos = obs.mission_goal.region.center()
@@ -126,6 +107,4 @@ class MyPolicy(Policy):
                 )
             )
             
-        plan = Plan(steps=steps)
-        # self._log_plan(obs, plan)
-        return plan
+        return Plan(steps=steps)
