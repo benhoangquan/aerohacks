@@ -1,0 +1,142 @@
+{
+  "scenario_id": "edge_altitude",
+  "map_boundaries": {
+    "vertices": [
+      {
+        "x": 0,
+        "y": 0
+      },
+      {
+        "x": 1000.0,
+        "y": 0
+      },
+      {
+        "x": 1000.0,
+        "y": 1000.0
+      },
+      {
+        "x": 0,
+        "y": 1000.0
+      }
+    ]
+  },
+  "start_state": {
+    "position": {
+      "x": 53.0,
+      "y": 71.2
+    },
+    "alt_layer": 3,
+    "energy": 450.0,
+    "velocity": {
+      "x": 0.0,
+      "y": 0.0
+    },
+    "heading": 0.0
+  },
+  "mission_goal": {
+    "region": {
+      "vertices": [
+        {
+          "x": 908.8,
+          "y": 934.9
+        },
+        {
+          "x": 958.8,
+          "y": 934.9
+        },
+        {
+          "x": 958.8,
+          "y": 984.9
+        },
+        {
+          "x": 908.8,
+          "y": 984.9
+        }
+      ]
+    },
+    "target_alt_layer": 2
+  },
+  "vehicle_limits": {
+    "max_horizontal_speed": 15.0,
+    "max_vertical_rate": 1,
+    "energy_decay_rate": 0.1,
+    "energy_reserve_threshold": 20.0
+  },
+  "scoring_config": {
+    "base_success_score": 1000.0,
+    "safe_emergency_landing_score": 300.0,
+    "controlled_phase_penalty": -50.0,
+    "restricted_phase_penalty": -200.0,
+    "separation_loss_penalty_advisory": -10.0,
+    "separation_loss_penalty_conflict": -150.0,
+    "collision_penalty": -500.0,
+    "battery_breach_penalty": -500.0,
+    "time_bonus_multiplier": 10.0,
+    "max_time": 1000
+  },
+  "permanent_constraints": [],
+  "static_obstacles": [
+    {
+      "type": "CircleRegion",
+      "center_pos": {
+        "x": 460.2,
+        "y": 207.0
+      },
+      "radius": 19.0
+    },
+    {
+      "type": "PolygonRegion",
+      "vertices": [
+        {
+          "x": 767.9,
+          "y": 620.0
+        },
+        {
+          "x": 714.7,
+          "y": 648.2
+        },
+        {
+          "x": 662.6,
+          "y": 606.5
+        },
+        {
+          "x": 730.6,
+          "y": 533.8
+        }
+      ]
+    },
+    {
+      "type": "CircleRegion",
+      "center_pos": {
+        "x": 610.7,
+        "y": 785.6
+      },
+      "radius": 60.7
+    }
+  ],
+  "emergency_landing_sites": [
+    {
+      "id": "em_site_center",
+      "region": {
+        "vertices": [
+          {
+            "x": 487.5,
+            "y": 487.5
+          },
+          {
+            "x": 512.5,
+            "y": 487.5
+          },
+          {
+            "x": 512.5,
+            "y": 512.5
+          },
+          {
+            "x": 487.5,
+            "y": 512.5
+          }
+        ]
+      }
+    }
+  ]
+}

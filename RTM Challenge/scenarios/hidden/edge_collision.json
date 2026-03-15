@@ -1,0 +1,23 @@
+{
+  "shrinking_notams": [],
+  "traffic_traces": [
+    {
+      "id": "head_on_traffic",
+      "segments": [
+        {
+          "start_time": 0,
+          "end_time": 1500,
+          "start_pos": {
+            "x": 9000,
+            "y": 5000
+          },
+          "velocity": {
+            "x": -10.0,
+            "y": 0.0
+          },
+          "alt_layer": 2
+        }
+      ]
+    }
+  ]
+}
