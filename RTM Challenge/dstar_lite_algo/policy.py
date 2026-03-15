@@ -4,121 +4,45 @@ import math
 import heapq
 from typing import List, Tuple, Dict, Set, Optional
 
-class PriorityQueue:
-    def __init__(self):
-        self.elements = []
-        self.entry_finder = {}
-        self.REMOVED = '<removed-node>'
-        self.counter = 0
+def heuristic_pos(pos_u, pos_v):
+    dx = pos_u[0] - pos_v[0]
+    dy = pos_u[1] - pos_v[1]
+    dz = pos_u[2] - pos_v[2]
+    return math.hypot(dx, dy) + abs(dz)*20.0
 
-    def insert(self, node, priority):
-        if node in self.entry_finder:
-            self.remove(node)
-        self.counter += 1
-        entry = [priority, self.counter, node]
-        self.entry_finder[node] = entry
-        heapq.heappush(self.elements, entry)
-
-    def remove(self, node):
-        entry = self.entry_finder.pop(node)
-        entry[-1] = self.REMOVED
-
-    def top(self):
-        while self.elements:
-            priority, count, node = self.elements[0]
-            if node is not self.REMOVED:
-                return priority, node
-            heapq.heappop(self.elements)
-        return ([float('inf'), float('inf')], None)
-
-    def pop(self):
-        while self.elements:
-            priority, count, node = heapq.heappop(self.elements)
-            if node is not self.REMOVED:
-                del self.entry_finder[node]
-                return priority, node
-        return ([float('inf'), float('inf')], None)
+def a_star_search(start_node, goal_node, nodes, edges):
+    open_set = []
+    heapq.heappush(open_set, (0.0, start_node))
+    came_from = {}
+    
+    g_score = {start_node: 0.0}
+    f_score = {start_node: heuristic_pos(nodes[start_node], nodes[goal_node])}
+    
+    while open_set:
+        _, current = heapq.heappop(open_set)
         
-    def has(self, node):
-        return node in self.entry_finder
-
-class DStarLite:
-    def __init__(self, s_start, s_goal):
-        self.s_start = s_start
-        self.s_goal = s_goal
-        self.k_m = 0.0
-        self.U = PriorityQueue()
-        self.rhs = {}
-        self.g = {}
-        self.edges = {}
-        self.nodes = {}
-        
-        if self.s_goal is not None:
-            self.U.insert(self.s_goal, self.CalculateKey(self.s_goal))
-            self.rhs[self.s_goal] = 0.0
-
-    def get_g(self, u): return self.g.get(u, float('inf'))
-    def get_rhs(self, u): return self.rhs.get(u, float('inf'))
-
-    def heuristic_pos(self, pos_u, pos_v):
-        dx = pos_u[0] - pos_v[0]
-        dy = pos_u[1] - pos_v[1]
-        dz = pos_u[2] - pos_v[2]
-        return math.hypot(dx, dy) + abs(dz)*20.0
-
-    def heuristic(self, u, v):
-        if u not in self.nodes or v not in self.nodes: return float('inf')
-        return self.heuristic_pos(self.nodes[u], self.nodes[v])
-
-    def CalculateKey(self, s):
-        g_s = self.get_g(s)
-        rhs_s = self.get_rhs(s)
-        min_g_rhs = min(g_s, rhs_s)
-        return [min_g_rhs + self.heuristic(self.s_start, s) + self.k_m, min_g_rhs]
-
-    def UpdateVertex(self, u):
-        if u != self.s_goal:
-            min_rhs = float('inf')
-            for v, cost in self.edges.get(u, {}).items():
-                min_rhs = min(min_rhs, cost + self.get_g(v))
-            self.rhs[u] = min_rhs
+        if current == goal_node:
+            path = [current]
+            while current in came_from:
+                current = came_from[current]
+                path.append(current)
+            path.reverse()
+            return path, g_score[goal_node]
             
-        if self.U.has(u):
-            self.U.remove(u)
+        for neighbor, edge_cost in edges.get(current, {}).items():
+            tentative_g_score = g_score[current] + edge_cost
             
-        if self.get_g(u) != self.get_rhs(u):
-            self.U.insert(u, self.CalculateKey(u))
-
-    def ComputeShortestPath(self):
-        iterations = 0
-        while iterations < 10000:
-            iterations += 1
-            top = self.U.top()
-            if top[1] is None: break
-            k_old, u = top
-            
-            k_start = self.CalculateKey(self.s_start)
-            if k_old >= k_start and self.get_rhs(self.s_start) == self.get_g(self.s_start):
-                break
+            if tentative_g_score < g_score.get(neighbor, float('inf')):
+                came_from[neighbor] = current
+                g_score[neighbor] = tentative_g_score
+                f_score[neighbor] = tentative_g_score + heuristic_pos(nodes[neighbor], nodes[goal_node])
+                heapq.heappush(open_set, (f_score[neighbor], neighbor))
                 
-            self.U.pop()
-            k_new = self.CalculateKey(u)
-            
-            if k_old < k_new:
-                self.U.insert(u, k_new)
-            elif self.get_g(u) > self.get_rhs(u):
-                self.g[u] = self.get_rhs(u)
-                for v in self.edges.get(u, {}):
-                    self.UpdateVertex(v)
-            else:
-                self.g[u] = float('inf')
-                self.UpdateVertex(u)
-                for v in self.edges.get(u, {}):
-                    self.UpdateVertex(v)
+    return None, float('inf')
 
 class MyPolicy(Policy):
     def __init__(self):
-        self.dstar = None
+        pass
         
     def ccw(self, A, B, C):
         return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x)
@@ -173,8 +97,6 @@ class MyPolicy(Policy):
         return True
 
     def circle_to_polygon(self, center, radius, expand_r, num_points=8):
-        # We must circumscribe the polygon so straight edges don't cut inside the circle.
-        # The apothem (closest distance to edge) is radius + expand_r.
         apothem = radius * 1.2 # Scale by radius might give a more safe margin
         r = apothem / math.cos(math.pi / num_points)
         verts = []
@@ -299,7 +221,8 @@ class MyPolicy(Policy):
                     valid = True
                     A = Position2D(x=pos_u[0], y=pos_u[1])
                     B = Position2D(x=pos_v[0], y=pos_v[1])
-                    is_sg = (u == 'start' or u == 'goal' or v == 'start' or v == 'goal')
+                    is_sg = ('start' in u or 'goal' in u or 'em_site' in u or 
+                             'start' in v or 'goal' in v or 'em_site' in v)
                     
                     if map_verts:
                         if not self.is_inside_map(A, map_verts) or not self.is_inside_map(B, map_verts):
@@ -333,7 +256,8 @@ class MyPolicy(Policy):
                             for poly, alts in restricted_polys:
                                 if alts is None or pos_u[2] in alts or pos_v[2] in alts:
                                     # Use a relaxed check if moving vertically while in a buffer
-                                    is_sg = (u == 'start' or u == 'goal' or v == 'start' or v == 'goal')
+                                    is_sg = ('start' in u or 'goal' in u or 'em_site' in u or 
+                                             'start' in v or 'goal' in v or 'em_site' in v)
                                     if not is_sg and self.is_point_strictly_in_polygon(A, poly):
                                         valid = False
                                         break
@@ -344,10 +268,6 @@ class MyPolicy(Policy):
         return edges
 
     def step(self, obs: Observation) -> Plan:
-        
-        if self.dstar is None:
-            self.dstar = DStarLite(None, None)
-            
         goal_alt = obs.mission_goal.target_alt_layer if obs.mission_goal.target_alt_layer is not None else obs.ownship_state.alt_layer
         goal_pos = self.get_region_center(obs.mission_goal.region)
         
@@ -355,6 +275,23 @@ class MyPolicy(Policy):
         current_nodes['start'] = (obs.ownship_state.position.x, obs.ownship_state.position.y, obs.ownship_state.alt_layer)
         current_nodes['goal'] = (goal_pos.x, goal_pos.y, goal_alt)
         
+        # Add start/goal projections across all altitudes
+        for a in [1, 2, 3, 4]:
+            if a != obs.ownship_state.alt_layer:
+                current_nodes[f'start_alt_{a}'] = (obs.ownship_state.position.x, obs.ownship_state.position.y, a)
+            if a != goal_alt:
+                current_nodes[f'goal_alt_{a}'] = (goal_pos.x, goal_pos.y, a)
+                
+        # Emergency sites
+        em_sites = {}
+        for site in obs.emergency_landing_sites:
+            center = self.get_region_center(site.region)
+            s_id = f"em_site_{getattr(site, 'id', 'x')}"
+            em_sites[s_id] = site
+            current_nodes[s_id] = (center.x, center.y, 1) # Generally layer 1 is lowest before 0
+            for a in [2, 3, 4]:
+                current_nodes[f'{s_id}_alt_{a}'] = (center.x, center.y, a)
+
         def add_poly_nodes(prefix, poly, alts):
             idx = 0
             for alt in alts:
@@ -362,10 +299,7 @@ class MyPolicy(Policy):
                     current_nodes[f'{prefix}_{idx}'] = (v.x, v.y, alt)
                     idx += 1
                     
-        alts_to_consider = [obs.ownship_state.alt_layer, goal_alt]
-        for c in obs.active_constraints:
-            for a in c.alt_layers:
-                if a not in alts_to_consider: alts_to_consider.append(a)
+        alts_to_consider = [1, 2, 3, 4]
                 
         for i, obs_reg in enumerate(obs.static_obstacles):
             add_poly_nodes(f'stat_{i}', self.get_poly(obs_reg, 22.0), alts_to_consider)
@@ -379,79 +313,59 @@ class MyPolicy(Policy):
             box = self.get_box(track.position, 60.0)
             add_poly_nodes(f'traf_{t_id}', box, [track.alt_layer])
             
-        if self.dstar.s_start is None:
-            self.dstar.s_start = 'start'
-            self.dstar.s_goal = 'goal'
-            self.dstar.nodes = current_nodes
-            self.dstar.U.insert('goal', self.dstar.CalculateKey('goal'))
-            self.dstar.rhs['goal'] = 0.0
-        else:
-            old_start_pos = self.dstar.nodes['start']
-            new_start_pos = current_nodes['start']
-            self.dstar.k_m += self.dstar.heuristic_pos(old_start_pos, new_start_pos)
-            for u, pos in current_nodes.items():
-                self.dstar.nodes[u] = pos
+        # Compute edges from scratch
+        edges = self.compute_all_edges(obs, current_nodes)
+        
+        # 1. Primary Route Planning
+        path, path_cost = a_star_search('start', 'goal', current_nodes, edges)
+        
+        # Determine feasibility
+        estimated_ticks = path_cost / 15.0
+        required_energy = estimated_ticks * 0.1
+        current_energy = obs.ownship_state.energy
+        
+        # 2. Emergency Diversion Check
+        diverting = False
+        target_goal_node = 'goal'
+        if path is None or (current_energy - required_energy) < 15.0: # 15 energy safety buffer
+            # Find nearest reachable emergency site
+            best_em_site = None
+            best_em_cost = float('inf')
+            best_em_path = None
+            
+            for s_id in em_sites.keys():
+                em_path, em_cost = a_star_search('start', s_id, current_nodes, edges)
+                if em_path and em_cost < best_em_cost:
+                    best_em_cost = em_cost
+                    best_em_site = s_id
+                    best_em_path = em_path
+                    
+            if best_em_site is not None:
+                path = best_em_path
+                target_goal_node = best_em_site
+                diverting = True
+            elif path is None:
+                # Can't even reach an emergency site. Just HOLD and die if path is None
+                path = ['start']
                 
-        new_edges = self.compute_all_edges(obs, current_nodes)
-        
-        changed_nodes = set()
-        
-        for u in list(self.dstar.edges.keys()):
-            for v in list(self.dstar.edges[u].keys()):
-                old_c = self.dstar.edges[u][v]
-                new_c = new_edges.get(u, {}).get(v, float('inf'))
-                if abs(old_c - new_c) > 1e-3:
-                    self.dstar.edges[u][v] = new_c
-                    changed_nodes.add(u)
-                    
-        for u in new_edges:
-            for v, new_c in new_edges[u].items():
-                old_c = self.dstar.edges.get(u, {}).get(v, float('inf'))
-                if abs(old_c - new_c) > 1e-3:
-                    if u not in self.dstar.edges: self.dstar.edges[u] = {}
-                    self.dstar.edges[u][v] = new_c
-                    changed_nodes.add(u)
-                    
-        for u in changed_nodes:
-            self.dstar.UpdateVertex(u)
-            
-        self.dstar.ComputeShortestPath()
-        
-        path = ['start']
-        curr = 'start'
-        
-        max_path = 50
-        while curr != 'goal' and len(path) < max_path:
-            best_v = None
-            best_cost = float('inf')
-            best_g = float('inf')
-            for v, edge_cost in self.dstar.edges.get(curr, {}).items():
-                cost = edge_cost + self.dstar.get_g(v)
-                if cost < best_cost - 1e-4:
-                    best_cost = cost
-                    best_v = v
-                    best_g = self.dstar.get_g(v)
-                elif abs(cost - best_cost) <= 1e-4:
-                    if self.dstar.get_g(v) < best_g:
-                        best_v = v
-                        best_g = self.dstar.get_g(v)
-                        
-            if best_v is None or best_cost == float('inf'):
-                break 
-            path.append(best_v)
-            curr = best_v
-            
+        # 3. Action Execution
         steps = []
         current_world_pos = obs.ownship_state.position
         current_alt = obs.ownship_state.alt_layer
-        
         path_idx = 1
         speed = 15.0
+        
+        # If diverting and we are physically inside the emergency site horizontally
+        if diverting and target_goal_node in em_sites:
+            site_reg = em_sites[target_goal_node].region
+            if self.is_point_in_polygon(current_world_pos, getattr(site_reg, 'vertices', [])):
+                # Initiate safe emergency landing sequence
+                return Plan(steps=[ActionStep(ActionType.EMERGENCY_LAND)] * 5)
         
         for i in range(5):
             if path_idx < len(path):
                 target_node = path[path_idx]
-                target_pos = self.dstar.nodes[target_node]
+                target_pos = current_nodes[target_node]
                 target_world = Position2D(x=target_pos[0], y=target_pos[1])
                 target_a = target_pos[2]
                 
@@ -485,9 +399,8 @@ class MyPolicy(Policy):
             else:
                 steps.append(ActionStep(ActionType.HOLD))
                 
+        # Failsafe
         if obs.ownship_state.energy < 20.0:
             return Plan(steps=[ActionStep(ActionType.EMERGENCY_LAND)] * 5)
-        
-        # import pdb; pdb.set_trace()
             
         return Plan(steps=steps)
